@@ -10,15 +10,15 @@ services:
         # Append -bullseye or -buster to pin to an OS version.
         # Use -bullseye variants on local arm64/Apple Silicon.
         VARIANT: 20-bullseye
-
     volumes:
       - ..:/workspace:cached
 
     # Overrides default command so things don't shut down after the process ends.
     command: sleep infinity
-
     networks:
       - backend
+    environment:
+      DATABASE_URL: 'postgresql://postgres:123456@db:54320/mydb'
 
     # Uncomment the next line to use a non-root user for all processes.
     # user: node

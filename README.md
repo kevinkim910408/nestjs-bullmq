@@ -709,8 +709,6 @@ RUN npm rm -g pnpm \
     "docker:down": "docker-compose -f .devcontainer/docker-compose.yml down",
 ```
 
-- pnpm docker:up으로 실행 (폴더 하나 나가서 cd ../)
-
 ### 도커 안쓰는 볼륨 확인 및 삭제 명령어
 
 ```
@@ -719,3 +717,72 @@ docker volume ls
 # 삭제
 docker volume rm $(docker volume ls -qf dangling=true)
 ```
+
+### 우분투로 옮긴후
+
+```
+pnpm install
+pnpm db:generate
+```
+
+### 그리고 에러: P1001: Can't reach database server at `db:54320`
+
+- 하.. 우연히 됬다.
+- yml파일에 환경변수 추가
+
+```yml
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        # Update 'VARIANT' to pick an LTS version of Node.js: 16, 14, 12.
+        # Append -bullseye or -buster to pin to an OS version.
+        # Use -bullseye variants on local arm64/Apple Silicon.
+        VARIANT: 20-bullseye
+    volumes:
+      - ..:/workspace:cached
+
+    # Overrides default command so things don't shut down after the process ends.
+    command: sleep infinity
+    networks:
+      - backend
+    environment:
+      DATABASE_URL: 'postgresql://postgres:123456@db:54320/mydb'
+
+    # Uncomment the next line to use a non-root user for all processes.
+    # user: node
+
+  db:
+    image: postgres:13
+    environment:
+      POSTGRES_PASSWORD: 123456
+      POSTGRES_USER: postgres
+      POSTGRES_DB: mydb
+    ports:
+      - '54320:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - backend
+
+  redis:
+    image: redis
+    ports:
+      - '6379:6379'
+    networks:
+      - backend
+
+volumes:
+  postgres_data:
+
+networks:
+  backend:
+```
+
+### 데이터베이스 스키마 적용
+
+- pnpm db:migrate
