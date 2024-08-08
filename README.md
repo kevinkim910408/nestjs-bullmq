@@ -786,3 +786,47 @@ networks:
 ### 데이터베이스 스키마 적용
 
 - pnpm db:migrate
+- pnpm db:studio로 스튜디오 확인
+- 안에 User 테이블 있으면 성공.
+
+### Seed
+
+- root 위치에 seed.ts
+
+```js
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
+
+async function main() {
+  await prisma.user.createMany({
+    data: [
+      {
+        email: 'user1@example.com',
+        name: 'User One',
+      },
+      {
+        email: 'user2@example.com',
+        name: 'User Two',
+      },
+    ],
+  });
+}
+
+main()
+  .catch((e) => {
+    console.error(e);
+    process.exit(1);
+  })
+  .finally(async () => {
+    await prisma.$disconnect();
+  });
+```
+
+- package.json에 명령어 추가
+
+```
+    "db:seed": "ts-node ./seed.ts",
+```
+
+- seed 실행하고, studio로 User 테이블에 데이터 두개 들어가 있으면 성공

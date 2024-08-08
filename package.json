@@ -9,6 +9,7 @@
     "build": "nest build",
     "db:migrate": "npx prisma migrate dev --name init",
     "db:generate": "npx prisma generate",
+    "db:seed": "ts-node ./seed.ts",
     "db:studio": "npx prisma studio",
     "docker:up": "docker-compose -f .devcontainer/docker-compose.yml up -d",
     "docker:down": "docker-compose -f .devcontainer/docker-compose.yml down",
@@ -58,7 +59,7 @@
     "supertest": "^7.0.0",
     "ts-jest": "^29.1.0",
     "ts-loader": "^9.4.3",
-    "ts-node": "^10.9.1",
+    "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",
     "typescript": "^5.1.3"
   },
