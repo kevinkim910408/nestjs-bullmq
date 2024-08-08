@@ -7,9 +7,11 @@ import { TranscodeConsumer } from './transcode.consumer';
 import { BullBoardModule } from '@bull-board/nestjs';
 import { BullMQAdapter } from '@bull-board/api/bullMQAdapter';
 import { ExpressAdapter } from '@bull-board/express';
+import { PrismaModule } from 'prisma/prisma.module';
 
 @Module({
   imports: [
+    PrismaModule,
     BullModule.forRoot({
       redis: {
         host: 'localhost',

@@ -430,3 +430,292 @@ export class AppService {
 
 - bull dashboard에 바로 delayed가 한개 들어와 있으면 성공
 - 1분에 하나씩 completed되고 delayed 가 잘 되면 성공.
+
+### Prisma 셋업
+
+- 설치
+
+```
+pnpm install @prisma/client
+pnpm install prisma --save-dev
+```
+
+- init
+
+```
+npx prisma init
+```
+
+- .env
+
+```
+DATABASE_URL="postgresql://postgres:123456@db:54320/testdb"
+```
+
+- 모델추가
+
+```
+model User {
+  id    Int     @id @default(autoincrement())
+  email String  @unique
+  name  String?
+}
+```
+
+- 기본 명령어 추가
+- package.json
+
+```
+    "db:migrate": "npx prisma migrate dev --name init",
+    "db:generate": "npx prisma generate",
+    "db:studio": "npx prisma studio",
+```
+
+- prisma.service.ts
+
+```js
+import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
+import { PrismaClient } from '@prisma/client';
+
+@Injectable()
+export class PrismaService
+  extends PrismaClient
+  implements OnModuleInit, OnModuleDestroy
+{
+  async onModuleInit() {
+    await this.$connect();
+  }
+
+  async onModuleDestroy() {
+    await this.$disconnect();
+  }
+}
+```
+
+- prisma.module.ts
+
+```js
+import { Module } from '@nestjs/common';
+import { PrismaService } from './prisma.service';
+
+@Module({
+  providers: [PrismaService],
+  exports: [PrismaService],
+})
+export class PrismaModule {}
+```
+
+- app.module.ts에 모듈 추가
+
+```js
+import { Module } from '@nestjs/common';
+import { AppController } from './app.controller';
+import { AppService } from './app.service';
+import { BullModule } from '@nestjs/bull';
+import { TRANSCODE_QUEUE } from './constants';
+import { TranscodeConsumer } from './transcode.consumer';
+import { BullBoardModule } from '@bull-board/nestjs';
+import { BullMQAdapter } from '@bull-board/api/bullMQAdapter';
+import { ExpressAdapter } from '@bull-board/express';
+import { PrismaModule } from 'prisma/prisma.module';
+
+@Module({
+  imports: [
+    PrismaModule,
+    BullModule.forRoot({
+      redis: {
+        host: 'localhost',
+        port: 6379,
+      },
+    }),
+    BullBoardModule.forRoot({
+      route: '/queues',
+      adapter: ExpressAdapter,
+    }),
+    BullModule.registerQueue({
+      name: TRANSCODE_QUEUE,
+    }),
+    BullBoardModule.forFeature({
+      name: TRANSCODE_QUEUE,
+      adapter: BullMQAdapter,
+    }),
+  ],
+  controllers: [AppController],
+  providers: [AppService, TranscodeConsumer],
+})
+export class AppModule {}
+```
+
+- .devcontainer/docker-compse.yml 생성
+
+```yml
+version: '3.8'
+services:
+  postgres:
+    image: postgres:13
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: mydatabase
+    ports:
+      - '54320:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  prisma:
+    image: node:16-alpine
+    command: sh -c "npm install && npx prisma migrate dev && npm run start:dev"
+    working_dir: /app
+    volumes:
+      - .:/app
+    ports:
+      - '3000:3000'
+    depends_on:
+      - postgres
+
+volumes:
+  postgres_data:
+```
+
+- .devcontainer로 들어가서 yml 파일 실행
+
+```
+cd .devcontainer
+docker-compose up -d
+```
+
+- 도커를 체크해서 db가 실행되고 있나 체크
+- 잘 되면 잠깐 정지하고(아예 지우는게 편함), 아까 redis도 여기에 넣어줌, 그리고 app 도 도커 파일도 하나씩 빌드해줌
+- docker-compose.yml
+
+```yml
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        # Update 'VARIANT' to pick an LTS version of Node.js: 16, 14, 12.
+        # Append -bullseye or -buster to pin to an OS version.
+        # Use -bullseye variants on local arm64/Apple Silicon.
+        VARIANT: 20-bullseye
+
+    volumes:
+      - ..:/workspace:cached
+
+    # Overrides default command so things don't shut down after the process ends.
+    command: sleep infinity
+
+    networks:
+      - backend
+
+    # Uncomment the next line to use a non-root user for all processes.
+    # user: node
+
+  db:
+    image: postgres:13
+    environment:
+      POSTGRES_PASSWORD: 123456
+      POSTGRES_USER: postgres
+      POSTGRES_DB: mydb
+    ports:
+      - '54320:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - backend
+
+  redis:
+    image: redis
+    ports:
+      - '6379:6379'
+    networks:
+      - backend
+
+volumes:
+  postgres_data:
+
+networks:
+  backend:
+```
+
+- devcontainer.json
+
+```json
+{
+  "name": "Docker in Docker",
+  "dockerComposeFile": "docker-compose.yml",
+  "service": "app",
+  "workspaceFolder": "/workspace",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "bradlc.vscode-tailwindcss",
+        "esbenp.prettier-vscode",
+        "dotenv.dotenv-vscode",
+        "yoavbls.pretty-ts-errors",
+        "github.vscode-github-actions",
+        "ms-azuretools.vscode-docker",
+        "streetsidesoftware.code-spell-checker",
+        "GraphQL.vscode-graphql",
+        "eamodio.gitlens",
+        "Prisma.prisma",
+        "GitHub.vscode-pull-request-github",
+        "tamasfe.even-better-toml",
+        "ms-playwright.playwright",
+        "vitest.explorer",
+        "amazonwebservices.aws-toolkit-vscode",
+        "dbaeumer.vscode-eslint@3.0.5"
+      ]
+    }
+  },
+  "containerEnv": {
+    "FORCE_COLOR": "1"
+  },
+  "remoteUser": "node",
+  "forwardPorts": [3001, 24678],
+  "mounts": [
+    "source=${localEnv:HOME}/.aws,target=/home/node/.aws,type=bind,consistency=cached"
+  ],
+  "postCreateCommand": "yes Y | pnpm config set store-dir /home/node/.local/share/pnpm/store"
+}
+```
+
+- Dockerfile
+
+```
+ARG VARIANT=1-20-bullseye
+FROM mcr.microsoft.com/devcontainers/javascript-node:${VARIANT}
+
+# [Optional] Uncomment if you want to install an additional version of node using nvm
+# ARG EXTRA_NODE_VERSION=10
+# RUN su node -c "source /usr/local/share/nvm/nvm.sh && nvm install ${EXTRA_NODE_VERSION}"
+
+# [Optional] Uncomment if you want to install more global node modules
+# RUN su node -c "npm install -g <your-package-list-here>"
+
+RUN npm rm -g pnpm \
+    && rm -rf $PNPM_HOME \
+    && corepack enable pnpm
+```
+
+- 다시 정지하고, 실행이 잘되면 이제 편한 실행을 위해 package.json에 스크립트 추가
+
+```
+    "docker:up": "docker-compose -f .devcontainer/docker-compose.yml up -d",
+    "docker:down": "docker-compose -f .devcontainer/docker-compose.yml down",
+```
+
+- pnpm docker:up으로 실행 (폴더 하나 나가서 cd ../)
+
+### 도커 안쓰는 볼륨 확인 및 삭제 명령어
+
+```
+# 확인
+docker volume ls
+# 삭제
+docker volume rm $(docker volume ls -qf dangling=true)
+```
