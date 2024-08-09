@@ -590,3 +590,41 @@ main()
 - 만약 다 맞으면, Nest.js 실행해서 http://localhost:3000/users 이 url Get해서 유저 두명 들어오는지 체크
 
 ### Docker 셋업
+
+- docker-compose.yml 파일 생성
+
+```
+touch docker-compose.yml
+```
+
+- 내부
+
+```
+version: '3.8'
+services:
+  postgres:
+    image: postgres:13.5
+    restart: always
+    environment:
+      - POSTGRES_USER=myuser
+      - POSTGRES_PASSWORD=mypassword
+    volumes:
+      - postgres:/var/lib/postgresql/data
+    ports:
+      - '5432:5432'
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - '6379:6379'
+volumes:
+  postgres:
+```
+
+- package.json에 추가
+
+```
+"docker": "docker-compose up",
+```
+
+- 도커 없이 실행하면 http://localhost:3000/queues 여기에 job 있어선 안되고, 도커 실행하고 하면 job 있어야함.
