@@ -7,12 +7,8 @@
   "license": "UNLICENSED",
   "scripts": {
     "build": "nest build",
-    "db:migrate": "npx prisma migrate dev --name init",
-    "db:generate": "npx prisma generate",
     "db:seed": "ts-node ./seed.ts",
     "db:studio": "npx prisma studio",
-    "docker:up": "docker-compose -f .devcontainer/docker-compose.yml up -d",
-    "docker:down": "docker-compose -f .devcontainer/docker-compose.yml down",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",
     "start:dev": "nest start --watch",

@@ -466,8 +466,7 @@ model User {
 - package.json
 
 ```
-    "db:migrate": "npx prisma migrate dev --name init",
-    "db:generate": "npx prisma generate",
+    "db:seed": "ts-node ./seed.ts",
     "db:studio": "npx prisma studio",
 ```
 
@@ -546,6 +545,48 @@ import { PrismaModule } from 'prisma/prisma.module';
 export class AppModule {}
 ```
 
-### PrismaClientInitializationError: Can't reach database server at `db:5432`
+- Migrate 데이터베이스
+- prisma 폴더안에 migrations가 있어야함, 이미 있으면 지우고 다시 해야함.
 
-- 프리즈마를 연결했지만 DB가 실행되지 않아서 나는 에러
+```
+npx prisma migrate dev --name "init"
+```
+
+### seed
+
+- root에 seed.ts 추가
+
+```js
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
+
+async function main() {
+  await prisma.user.createMany({
+    data: [
+      {
+        email: 'user1@example.com',
+        name: 'User One',
+      },
+      {
+        email: 'user2@example.com',
+        name: 'User Two',
+      },
+    ],
+  });
+}
+
+main()
+  .catch((e) => {
+    console.error(e);
+    process.exit(1);
+  })
+  .finally(async () => {
+    await prisma.$disconnect();
+  });
+```
+
+- 커맨드 seed 실행, 그리고 studio도 실행해서 내부 체크
+- 만약 다 맞으면, Nest.js 실행해서 http://localhost:3000/users 이 url Get해서 유저 두명 들어오는지 체크
+
+### Docker 셋업
