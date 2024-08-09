@@ -1,4 +1,4 @@
-ARG VARIANT=1-20-bullseye
+ARG VARIANT=20-bullseye
 FROM mcr.microsoft.com/devcontainers/javascript-node:${VARIANT}
 
 # [Optional] Uncomment if you want to install an additional version of node using nvm
@@ -11,4 +11,6 @@ FROM mcr.microsoft.com/devcontainers/javascript-node:${VARIANT}
 RUN npm rm -g pnpm \
     && rm -rf $PNPM_HOME \
     && corepack enable pnpm
-
+    
+# 애플리케이션 실행을 위한 명령어 추가
+CMD ["npm", "start"]

@@ -449,7 +449,7 @@ npx prisma init
 - .env
 
 ```
-DATABASE_URL="postgresql://postgres:123456@db:54320/testdb"
+DATABASE_URL="postgresql://postgres:123456@db:5432/testdb"
 ```
 
 - 모델추가
@@ -559,7 +559,7 @@ services:
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: mydatabase
     ports:
-      - '54320:5432'
+      - '5432:5432'
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
@@ -622,7 +622,7 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_DB: mydb
     ports:
-      - '54320:5432'
+      - '5432:5432'
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
@@ -725,7 +725,7 @@ pnpm install
 pnpm db:generate
 ```
 
-### 그리고 에러: P1001: Can't reach database server at `db:54320`
+### 그리고 에러: P1001: Can't reach database server at `db:5432`
 
 - 하.. 우연히 됬다.
 - yml파일에 환경변수 추가
@@ -751,7 +751,7 @@ services:
     networks:
       - backend
     environment:
-      DATABASE_URL: 'postgresql://postgres:123456@db:54320/mydb'
+      DATABASE_URL: 'postgresql://postgres:123456@db:5432/mydb'
 
     # Uncomment the next line to use a non-root user for all processes.
     # user: node
@@ -763,7 +763,7 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_DB: mydb
     ports:
-      - '54320:5432'
+      - '5432:5432'
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
@@ -830,3 +830,90 @@ main()
 ```
 
 - seed 실행하고, studio로 User 테이블에 데이터 두개 들어가 있으면 성공
+
+### 컨트롤러와 서비스에 user 정보 가져오는 코드 추가
+
+- app.service.ts
+
+```js
+import { Injectable } from '@nestjs/common';
+import { TRANSCODE_QUEUE } from './constants';
+import { Queue } from 'bull';
+import { InjectQueue } from '@nestjs/bull';
+import { PrismaService } from 'prisma/prisma.service';
+
+@Injectable()
+export class AppService {
+  constructor(
+    private readonly prisma: PrismaService,
+    @InjectQueue(TRANSCODE_QUEUE) private readonly transcodeQueue: Queue,
+  ) {}
+  async onModuleInit() {
+    this.scheduleNotifications();
+  }
+  getHello(): string {
+    return 'Hello World!';
+  }
+  async transcode() {
+    await this.transcodeQueue.add({
+      fileName: './file.mp3',
+    });
+  }
+  async sendHourlyNotification() {
+    await this.transcodeQueue.add(
+      {
+        message: 'sendHourlyNotification',
+      },
+      {
+        repeat: { cron: '*/1 * * * *' },
+      },
+    );
+  }
+  async scheduleNotifications() {
+    await this.transcodeQueue.add(
+      {
+        message: 'scheduleNotifications',
+      },
+      {
+        repeat: { cron: '*/1 * * * *' },
+      },
+    );
+  }
+  async getAllUsers() {
+    return this.prisma.user.findMany();
+  }
+}
+```
+
+- app.controller.ts
+
+```js
+import { Controller, Get, Post } from '@nestjs/common';
+import { AppService } from './app.service';
+
+@Controller()
+export class AppController {
+  constructor(private readonly appService: AppService) {}
+
+  @Get()
+  getHello(): string {
+    return this.appService.getHello();
+  }
+
+  @Post('transcode')
+  async transcode() {
+    return this.appService.transcode();
+  }
+
+  @Post('send-notification')
+  async sendNotification() {
+    return this.appService.sendHourlyNotification();
+  }
+  @Get('users')
+  async getAllUsers() {
+    return this.appService.getAllUsers();
+  }
+}
+```
+
+- postman으로 테스트

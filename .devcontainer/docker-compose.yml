@@ -1,4 +1,4 @@
-version: '3.8'
+version: '3.3'
 
 services:
   app:
@@ -6,22 +6,16 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        # Update 'VARIANT' to pick an LTS version of Node.js: 16, 14, 12.
-        # Append -bullseye or -buster to pin to an OS version.
-        # Use -bullseye variants on local arm64/Apple Silicon.
         VARIANT: 20-bullseye
     volumes:
       - ..:/workspace:cached
-
-    # Overrides default command so things don't shut down after the process ends.
-    command: sleep infinity
     networks:
       - backend
     environment:
-      DATABASE_URL: 'postgresql://postgres:123456@db:54320/mydb'
-
-    # Uncomment the next line to use a non-root user for all processes.
-    # user: node
+      DATABASE_URL: 'postgresql://postgres:123456@db:5432/mydb'
+    ports:
+      - '3000:3000'
+    command: npm start
 
   db:
     image: postgres:13
@@ -30,7 +24,7 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_DB: mydb
     ports:
-      - '54320:5432'
+      - '5432:5432'
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:

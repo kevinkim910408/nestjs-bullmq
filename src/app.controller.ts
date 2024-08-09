@@ -19,4 +19,8 @@ export class AppController {
   async sendNotification() {
     return this.appService.sendHourlyNotification();
   }
+  @Get('users')
+  async getAllUsers() {
+    return this.appService.getAllUsers();
+  }
 }

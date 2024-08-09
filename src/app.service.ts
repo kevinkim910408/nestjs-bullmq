@@ -2,10 +2,12 @@ import { Injectable } from '@nestjs/common';
 import { TRANSCODE_QUEUE } from './constants';
 import { Queue } from 'bull';
 import { InjectQueue } from '@nestjs/bull';
+import { PrismaService } from 'prisma/prisma.service';
 
 @Injectable()
 export class AppService {
   constructor(
+    private readonly prisma: PrismaService,
     @InjectQueue(TRANSCODE_QUEUE) private readonly transcodeQueue: Queue,
   ) {}
   async onModuleInit() {
@@ -38,5 +40,8 @@ export class AppService {
         repeat: { cron: '*/1 * * * *' },
       },
     );
+  }
+  async getAllUsers() {
+    return this.prisma.user.findMany();
   }
 }
