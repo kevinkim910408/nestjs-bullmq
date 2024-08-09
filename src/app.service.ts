@@ -40,12 +40,31 @@ export class AppService {
         repeat: { cron: '*/1 * * * *' },
       },
     );
+
     await this.transcodeQueue.add(
       {
         message: 'freezeUsers',
       },
       {
-        repeat: { cron: '10 12 * * *' },
+        repeat: { cron: '30 13 * * *' },
+      },
+    );
+
+    await this.transcodeQueue.add(
+      {
+        message: 'freezeUsers',
+      },
+      {
+        repeat: { cron: '31 13 * * *' },
+      },
+    );
+
+    await this.transcodeQueue.add(
+      {
+        message: 'freezeUsers',
+      },
+      {
+        repeat: { cron: '32 13 * * *' },
       },
     );
   }
@@ -59,6 +78,25 @@ export class AppService {
       email: user.email,
       name: user.name,
     }));
+
+    const currentCount = await this.prisma.freezedUser.count();
+
+    if (currentCount >= 6) {
+      const excessCount = currentCount + freezedUsers.length - 6;
+
+      if (excessCount > 0) {
+        const oldestUsers = await this.prisma.freezedUser.findMany({
+          orderBy: { createdAt: 'asc' },
+          take: excessCount,
+        });
+
+        await Promise.all(
+          oldestUsers.map((user) =>
+            this.prisma.freezedUser.delete({ where: { id: user.id } }),
+          ),
+        );
+      }
+    }
 
     await this.prisma.freezedUser.createMany({
       data: freezedUsers,
