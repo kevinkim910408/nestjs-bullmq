@@ -628,3 +628,120 @@ volumes:
 ```
 
 - 도커 없이 실행하면 http://localhost:3000/queues 여기에 job 있어선 안되고, 도커 실행하고 하면 job 있어야함.
+
+### 일정 시간이 되면 user 컬렉션에 있는 데이터를 복사해서 다른 컬렉션에 freezing 하기
+
+- 드디어 구현해야하는 메인 기능
+- 모델 추가
+
+```
+model FreezedUser {
+  id        Int      @id @default(autoincrement())
+  email     String
+  name      String?
+  createdAt DateTime @default(now())
+}
+```
+
+- 매번 마이그레이션 하기 쉽게 커맨드 추가
+
+```
+"db:migrate:dev": "pnpm prisma migrate dev",
+```
+
+- migrate 되면서 만약 db data 날아갔으면, seed 한번 더 해주고,
+- app.service.ts에 이제 job을 jobName으로 구별하는 식의 코드 짜주고, freeze 코드 추가
+
+```js
+import { Injectable } from '@nestjs/common';
+import { TRANSCODE_QUEUE } from './constants';
+import { Queue } from 'bull';
+import { InjectQueue } from '@nestjs/bull';
+import { PrismaService } from 'prisma/prisma.service';
+
+@Injectable()
+export class AppService {
+  constructor(
+    private readonly prisma: PrismaService,
+    @InjectQueue(TRANSCODE_QUEUE) private readonly transcodeQueue: Queue,
+  ) {}
+  async onModuleInit() {
+    this.scheduledTasks();
+  }
+  getHello(): string {
+    return 'Hello World!';
+  }
+  async transcode() {
+    await this.transcodeQueue.add({
+      fileName: './file.mp3',
+    });
+  }
+  async sendHourlyNotification() {
+    await this.transcodeQueue.add(
+      {
+        message: 'sendHourlyNotification',
+      },
+      {
+        repeat: { cron: '*/1 * * * *' },
+      },
+    );
+  }
+  async scheduledTasks() {
+    await this.transcodeQueue.add(
+      {
+        jobName: 'sendNotifications',
+      },
+      {
+        repeat: { cron: '*/1 * * * *' },
+      },
+    );
+    await this.transcodeQueue.add(
+      {
+        message: 'freezeUsers',
+      },
+      {
+        repeat: { cron: '10 12 * * *' },
+      },
+    );
+  }
+  async getAllUsers() {
+    return this.prisma.user.findMany();
+  }
+
+  async freezeUsers() {
+    const users = await this.prisma.user.findMany();
+    const freezedUsers = users.map((user) => ({
+      email: user.email,
+      name: user.name,
+    }));
+
+    await this.prisma.freezedUser.createMany({
+      data: freezedUsers,
+    });
+  }
+}
+```
+
+- 컨슈머에 jobName 받아서 freeze 실행하는거 추가
+
+```js
+import { Process, Processor } from '@nestjs/bull';
+import { TRANSCODE_QUEUE } from './constants';
+import { Logger } from '@nestjs/common';
+import { Job } from 'bull';
+import { AppService } from './app.service';
+
+@Processor(TRANSCODE_QUEUE)
+export class TranscodeConsumer {
+  private readonly logger = new Logger(TranscodeConsumer.name);
+  constructor(private readonly appService: AppService) {}
+
+  @Process()
+  async transcode(job: Job) {
+    this.logger.log(JSON.stringify(job));
+    if (job.data.message === 'freezeUsers') {
+      await this.appService.freezeUsers();
+    }
+  }
+}
+```

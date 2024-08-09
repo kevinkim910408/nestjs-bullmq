@@ -11,7 +11,7 @@ export class AppService {
     @InjectQueue(TRANSCODE_QUEUE) private readonly transcodeQueue: Queue,
   ) {}
   async onModuleInit() {
-    this.scheduleNotifications();
+    this.scheduledTasks();
   }
   getHello(): string {
     return 'Hello World!';
@@ -31,17 +31,37 @@ export class AppService {
       },
     );
   }
-  async scheduleNotifications() {
+  async scheduledTasks() {
     await this.transcodeQueue.add(
       {
-        message: 'scheduleNotifications',
+        jobName: 'sendNotifications',
       },
       {
         repeat: { cron: '*/1 * * * *' },
       },
     );
+    await this.transcodeQueue.add(
+      {
+        message: 'freezeUsers',
+      },
+      {
+        repeat: { cron: '10 12 * * *' },
+      },
+    );
   }
   async getAllUsers() {
     return this.prisma.user.findMany();
+  }
+
+  async freezeUsers() {
+    const users = await this.prisma.user.findMany();
+    const freezedUsers = users.map((user) => ({
+      email: user.email,
+      name: user.name,
+    }));
+
+    await this.prisma.freezedUser.createMany({
+      data: freezedUsers,
+    });
   }
 }

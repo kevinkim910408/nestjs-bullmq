@@ -9,6 +9,7 @@
     "build": "nest build",
     "db:seed": "ts-node ./seed.ts",
     "db:studio": "npx prisma studio",
+    "db:migrate:dev": "pnpm prisma migrate dev",
     "docker": "docker-compose up",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",

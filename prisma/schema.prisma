@@ -18,3 +18,10 @@ model User {
   email String  @unique
   name  String?
 }
+
+model FreezedUser {
+  id        Int      @id @default(autoincrement())
+  email     String
+  name      String?
+  createdAt DateTime @default(now())
+}
